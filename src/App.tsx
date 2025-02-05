@@ -140,10 +140,18 @@ const assistantTypes = {
   'Landing Page Juridica': import.meta.env.VITE_ASSISTANT_LANDING_PAGE_JURIDICA,
 };
 
-interface MessageContent {
-  type: string;
+// Tipos para o conteúdo das mensagens
+interface TextContent {
+  type: 'text';
   text: { value: string };
 }
+
+interface ImageContent {
+  type: 'image_file';
+  image_file: { url: string };
+}
+
+type MessageContent = TextContent | ImageContent;
 
 interface Message {
   role: 'user' | 'assistant';
@@ -240,7 +248,7 @@ function App() {
     setSnackbarOpen(true);
   };
 
-  const getAssistantResponse = async (message: string) => {
+  const getAssistantResponse = async (message: string): Promise<string> => {
     const assistantId = assistantTypes[selectedAssistant as keyof typeof assistantTypes];
     
     if (!assistantId) {
@@ -282,7 +290,11 @@ function App() {
       const lastMessage = messages.data[0];
       
       if (lastMessage.role === "assistant") {
-        return lastMessage.content[0].text.value;
+        const content = lastMessage.content[0];
+        if (content.type === 'text') {
+          return content.text.value;
+        }
+        throw new Error("Tipo de conteúdo não suportado");
       }
       
       throw new Error("Nenhuma mensagem do assistente encontrada");
@@ -332,7 +344,8 @@ function App() {
         
         // Adiciona o conteúdo da mensagem
         doc.setFont('helvetica', 'normal');
-        const messageText = msg.content[0]?.text?.value || '';
+        const content = msg.content[0];
+        const messageText = content?.type === 'text' ? content.text.value : '[Conteúdo não textual]';
         const lines = formatText(messageText, 170);
         
         // Verifica se precisa de uma nova página
@@ -577,7 +590,7 @@ function App() {
                       overflowWrap: 'break-word',
                     }}
                   >
-                    {message.content[0].text.value}
+                    {message.content[0].type === 'text' ? message.content[0].text.value : '[Conteúdo não textual]'}
                   </Typography>
                 </Box>
               </Box>
