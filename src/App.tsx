@@ -128,7 +128,6 @@ const theme = createTheme({
 });
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-const GOOGLE_DOCS_API_URL = 'https://docs.googleapis.com/v1/documents';
 
 const openai = new OpenAI({
   apiKey: OPENAI_API_KEY,
@@ -139,17 +138,16 @@ const openai = new OpenAI({
 const assistantTypes = {
   'Campanha de Google Ads': import.meta.env.VITE_ASSISTANT_CAMPAIGN_GOOGLE_ADS,
   'Landing Page Juridica': import.meta.env.VITE_ASSISTANT_LANDING_PAGE_JURIDICA,
-  'Modelos de Documentos Extrajudiciais': import.meta.env.VITE_ASSISTANT_MODELOS_DOCUMENTOS_EXTRAJUDICIAIS,
-  'Modelos de Documentos Judiciais': import.meta.env.VITE_ASSISTANT_MODELOS_DOCUMENTOS_JUDICIAIS,
-  'Documentos Administrativos': import.meta.env.VITE_ASSISTANT_MODELOS_DOCUMENTOS_ADMINISTRATIVOS,
-  'Funil de Fechamento': import.meta.env.VITE_ASSISTANT_FUNIL_FECHAMENTO_WHATS_REUNIAO,
-  'Estratégia de Comunicação': import.meta.env.VITE_ASSISTANT_ESTRATEGIA_COMUNICACAO_PRODUTO_JURIDICO,
-  'Plano de Produto': import.meta.env.VITE_ASSISTANT_PLANO_PRODUTO_JURIDICO
 };
+
+interface MessageContent {
+  type: string;
+  text: { value: string };
+}
 
 interface Message {
   role: 'user' | 'assistant';
-  content: string;
+  content: MessageContent[];
   timestamp: number;
 }
 
@@ -336,7 +334,7 @@ function App() {
         
         // Adiciona o conteúdo da mensagem
         doc.setFont('helvetica', 'normal');
-        const lines = doc.splitTextToSize(msg.content, 170);
+        const lines = doc.splitTextToSize(msg.content[0].text.value, 170);
         
         // Verifica se precisa de uma nova página
         if (yPosition + (lines.length * 7) + marginBottom > pageHeight) {
@@ -371,7 +369,7 @@ function App() {
     const startMessage = "COMEÇAR";
     const newMessage: Message = { 
       role: 'user', 
-      content: startMessage,
+      content: [{ type: 'text', text: { value: startMessage } }],
       timestamp: Date.now()
     };
     setMessages(prev => [...prev, newMessage]);
@@ -381,7 +379,7 @@ function App() {
       const assistantResponse = await getAssistantResponse(startMessage);
       const responseMessage: Message = {
         role: 'assistant',
-        content: assistantResponse,
+        content: [{ type: 'text', text: { value: assistantResponse } }],
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, responseMessage]);
@@ -389,7 +387,7 @@ function App() {
       console.error('Erro:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.',
+        content: [{ type: 'text', text: { value: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.' } }],
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -409,7 +407,7 @@ function App() {
     if (userMessage.toUpperCase().includes('DOCUMENTO')) {
       const newMessage: Message = { 
         role: 'user', 
-        content: userMessage,
+        content: [{ type: 'text', text: { value: userMessage } }],
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, newMessage]);
@@ -420,7 +418,7 @@ function App() {
     // Se não contém DOCUMENTO, processa normalmente
     const newMessage: Message = { 
       role: 'user', 
-      content: userMessage,
+      content: [{ type: 'text', text: { value: userMessage } }],
       timestamp: Date.now()
     };
     setMessages(prev => [...prev, newMessage]);
@@ -430,7 +428,7 @@ function App() {
       const assistantResponse = await getAssistantResponse(userMessage);
       const responseMessage: Message = {
         role: 'assistant',
-        content: assistantResponse,
+        content: [{ type: 'text', text: { value: assistantResponse } }],
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, responseMessage]);
@@ -438,7 +436,7 @@ function App() {
       console.error('Erro:', error);
       const errorMessage: Message = {
         role: 'assistant',
-        content: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.',
+        content: [{ type: 'text', text: { value: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.' } }],
         timestamp: Date.now()
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -580,7 +578,7 @@ function App() {
                       overflowWrap: 'break-word',
                     }}
                   >
-                    {message.content}
+                    {message.content[0].text.value}
                   </Typography>
                 </Box>
               </Box>
