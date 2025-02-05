@@ -24,8 +24,6 @@ import {
 import { 
   Send as SendIcon, 
   Delete as DeleteIcon,
-  Save as SaveIcon,
-  RestartAlt as RestartAltIcon,
   PlayArrow as PlayArrowIcon
 } from '@mui/icons-material';
 import OpenAI from 'openai';
