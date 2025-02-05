@@ -1,612 +1,667 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react';
 import { 
-  Box, 
-  TextField, 
-  Button, 
-  Typography, 
-  Container, 
-  Paper,
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Snackbar,
-  Alert,
-  IconButton,
-  Divider,
-  Avatar,
-  CircularProgress,
-  Tooltip
-} from '@mui/material'
-import { 
-  Send as SendIcon, 
-  Delete as DeleteIcon,
-  PlayArrow as PlayArrowIcon
-} from '@mui/icons-material';
-import OpenAI from 'openai';
+  Container, Box, Button, TextField, Paper, Typography, 
+  ThemeProvider, CssBaseline, Snackbar, Alert, CircularProgress,
+  CardContent, CardActionArea, IconButton, Tooltip, 
+  Dialog, DialogTitle, DialogContent, DialogActions,
+  Zoom, Fade, Grid
+} from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import DownloadIcon from '@mui/icons-material/Download';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import DeleteIcon from '@mui/icons-material/Delete';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import ShareIcon from '@mui/icons-material/Share';
+import SaveIcon from '@mui/icons-material/Save';
+import StarIcon from '@mui/icons-material/Star';
+import { theme } from './theme';
+import { assistants } from './config/assistants';
+import { openai } from './config/openai';
 import jsPDF from 'jspdf';
-
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#E2C074',
-    },
-    secondary: {
-      main: '#1E1E1E',
-    },
-    background: {
-      default: '#030409',
-      paper: '#1A1C23',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#E2C074',
-    },
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        body: {
-          backgroundColor: '#030409',
-          margin: 0,
-          padding: 0,
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundColor: '#1A1C23',
-        },
-      },
-    },
-  },
-});
-
-const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
-
-const openai = new OpenAI({
-  apiKey: OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
-});
-
-// Lista de assistentes disponíveis
-const assistantTypes = {
-  'Campanha de Google Ads': import.meta.env.VITE_ASSISTANT_CAMPAIGN_GOOGLE_ADS,
-  'Landing Page Juridica': import.meta.env.VITE_ASSISTANT_LANDING_PAGE_JURIDICA,
-};
-
-// Tipos para o conteúdo das mensagens
-interface TextContent {
-  type: 'text';
-  text: { value: string };
-}
-
-interface ImageContent {
-  type: 'image_file';
-  image_file: { url: string };
-}
-
-type MessageContent = TextContent | ImageContent;
 
 interface Message {
   role: 'user' | 'assistant';
-  content: MessageContent[];
+  content: Array<{ type: 'text'; text: { value: string } }>;
   timestamp: number;
 }
 
-interface ConversationThread {
-  messages: Message[];
-  assistantId: string;
-  threadId: string;
-}
-
-interface ConversationHistory {
-  [assistantId: string]: ConversationThread;
-}
-
-function App() {
+const App = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedAssistant, setSelectedAssistant] = useState<string>(Object.keys(assistantTypes)[0]);
+  const [selectedAssistant, setSelectedAssistant] = useState<string | null>(null);
+  const [currentThreadId, setCurrentThreadId] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error'>('success');
-  const [currentThreadId, setCurrentThreadId] = useState<string>('');
-  const messagesEndRef = useRef<null | HTMLDivElement>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [savedConversations, setSavedConversations] = useState<{
+    id: string;
+    title: string;
+    messages: Message[];
+    assistantId: string;
+    timestamp: number;
+  }[]>([]);
+  const [showSavedDialog, setShowSavedDialog] = useState(false);
+  const [conversationTitle, setConversationTitle] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Carregar histórico ao iniciar
-  useEffect(() => {
-    const loadHistory = () => {
-      const savedHistory = localStorage.getItem('conversationHistory');
-      if (savedHistory) {
-        const history: ConversationHistory = JSON.parse(savedHistory);
-        const currentAssistant = history[selectedAssistant];
-        if (currentAssistant) {
-          setMessages(currentAssistant.messages);
-          setCurrentThreadId(currentAssistant.threadId);
-        }
-      }
-    };
-
-    loadHistory();
-  }, [selectedAssistant]);
-
-  // Salvar histórico quando houver mudanças
-  useEffect(() => {
-    const saveHistory = () => {
-      const savedHistory = localStorage.getItem('conversationHistory') || '{}';
-      const history: ConversationHistory = JSON.parse(savedHistory);
-      
-      history[selectedAssistant] = {
-        messages,
-        assistantId: assistantTypes[selectedAssistant as keyof typeof assistantTypes],
-        threadId: currentThreadId
-      };
-
-      localStorage.setItem('conversationHistory', JSON.stringify(history));
-    };
-
-    if (messages.length > 0) {
-      saveHistory();
-    }
-  }, [messages, selectedAssistant, currentThreadId]);
-
-  const handleAssistantChange = (newAssistant: string) => {
-    setSelectedAssistant(newAssistant);
-    const savedHistory = localStorage.getItem('conversationHistory');
-    if (savedHistory) {
-      const history: ConversationHistory = JSON.parse(savedHistory);
-      const assistantHistory = history[newAssistant];
-      if (assistantHistory) {
-        setMessages(assistantHistory.messages);
-        setCurrentThreadId(assistantHistory.threadId);
-      } else {
-        setMessages([]);
-        setCurrentThreadId('');
-      }
-    }
-    setSnackbarMessage('Assistente alterado');
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const clearHistory = () => {
-    setMessages([]);
-    setCurrentThreadId('');
-    const savedHistory = localStorage.getItem('conversationHistory') || '{}';
-    const history: ConversationHistory = JSON.parse(savedHistory);
-    delete history[selectedAssistant];
-    localStorage.setItem('conversationHistory', JSON.stringify(history));
-    setSnackbarMessage('Histórico limpo');
-    setSnackbarSeverity('success');
-    setSnackbarOpen(true);
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
   };
 
-  const getAssistantResponse = async (message: string): Promise<string> => {
-    const assistantId = assistantTypes[selectedAssistant as keyof typeof assistantTypes];
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const startConversation = async (assistantId: string) => {
+    if (isLoading) return;
     
-    if (!assistantId) {
-      return "Erro: ID do assistente não encontrado. Por favor, verifique a configuração.";
-    }
-
     try {
-      let threadId = currentThreadId;
+      setIsLoading(true);
+      setSelectedAssistant(assistantId);
+
+      const thread = await openai.beta.threads.create();
+      setCurrentThreadId(thread.id);
+
+      const userMessage = {
+        role: 'user' as const,
+        content: [{ type: 'text' as const, text: { value: 'COMEÇAR' } }],
+        timestamp: new Date().toISOString()
+      };
       
-      if (!threadId) {
-        const thread = await openai.beta.threads.create();
-        threadId = thread.id;
-        setCurrentThreadId(threadId);
-      }
-      
-      await openai.beta.threads.messages.create(threadId, {
-        role: "user",
-        content: message
+      setMessages([userMessage]);
+
+      await openai.beta.threads.messages.create(thread.id, {
+        role: 'user',
+        content: 'COMEÇAR'
       });
 
-      const run = await openai.beta.threads.runs.create(threadId, {
-        assistant_id: assistantId,
+      const run = await openai.beta.threads.runs.create(thread.id, {
+        assistant_id: assistantId
       });
 
-      let runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
-      
-      while (runStatus.status !== "completed") {
-        if (runStatus.status === "failed") {
-          throw new Error("Execução do assistente falhou");
-        }
-        if (runStatus.status === "expired") {
-          throw new Error("Execução do assistente expirou");
-        }
+      let runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
+      while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
         await new Promise(resolve => setTimeout(resolve, 1000));
-        runStatus = await openai.beta.threads.runs.retrieve(threadId, run.id);
+        runStatus = await openai.beta.threads.runs.retrieve(thread.id, run.id);
       }
 
-      const messages = await openai.beta.threads.messages.list(threadId);
-      const lastMessage = messages.data[0];
-      
-      if (lastMessage.role === "assistant") {
-        const content = lastMessage.content[0];
-        if (content.type === 'text') {
-          return content.text.value;
-        }
-        throw new Error("Tipo de conteúdo não suportado");
+      if (runStatus.status === 'failed') {
+        throw new Error('Falha ao iniciar conversa');
       }
-      
-      throw new Error("Nenhuma mensagem do assistente encontrada");
+
+      const messages = await openai.beta.threads.messages.list(thread.id);
+      const response = messages.data[0];
+
+      if (response.role === 'assistant' && response.content[0].type === 'text') {
+        const assistantMessage = {
+          role: 'assistant' as const,
+          content: [{ type: 'text' as const, text: { value: response.content[0].text.value } }],
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      }
     } catch (error) {
-      console.error("Erro ao obter resposta do assistente:", error);
-      return "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.";
-    }
-  };
-
-  const formatText = (text: string, maxWidth: number): string[] => {
-    return text.split('\n').reduce((acc: string[], line: string) => {
-      if (line.length <= maxWidth) {
-        return [...acc, line];
-      }
-      
-      const words = line.split(' ');
-      let currentLine = '';
-      
-      words.forEach((word) => {
-        if ((currentLine + word).length <= maxWidth) {
-          currentLine += (currentLine ? ' ' : '') + word;
-        } else {
-          if (currentLine) acc.push(currentLine);
-          currentLine = word;
-        }
-      });
-      
-      if (currentLine) acc.push(currentLine);
-      return acc;
-    }, []);
-  };
-
-  const exportToPDF = async () => {
-    try {
-      const doc = new jsPDF();
-      
-      // Configurações do documento
-      const pageHeight = doc.internal.pageSize.height;
-      const marginBottom = 20;
-      let yPosition = 20;
-      
-      messages.forEach((msg) => {
-        // Adiciona o remetente
-        doc.setFont('helvetica', 'bold');
-        doc.text(msg.role === 'user' ? 'Você:' : 'Assistente:', 20, yPosition);
-        yPosition += 7;
-        
-        // Adiciona o conteúdo da mensagem
-        doc.setFont('helvetica', 'normal');
-        const content = msg.content[0];
-        const messageText = content?.type === 'text' ? content.text.value : '[Conteúdo não textual]';
-        const lines = formatText(messageText, 170);
-        
-        // Verifica se precisa de uma nova página
-        if (yPosition + (lines.length * 7) + marginBottom > pageHeight) {
-          doc.addPage();
-          yPosition = 20;
-        }
-        
-        lines.forEach((line: string) => {
-          doc.text(line, 20, yPosition);
-          yPosition += 7;
-        });
-        
-        yPosition += 5; // Espaço entre mensagens
-      });
-      
-      // Salva o PDF
-      const filename = `Conversa com ${selectedAssistant} - ${new Date().toLocaleDateString()}.pdf`;
-      doc.save(filename);
-
-      setSnackbarMessage('Documento PDF exportado com sucesso!');
-      setSnackbarSeverity('success');
-      setSnackbarOpen(true);
-    } catch (error) {
-      console.error('Erro ao exportar para PDF:', error);
-      setSnackbarMessage('Erro ao exportar o documento. Tente novamente.');
+      console.error('Erro ao iniciar:', error);
+      setSnackbarMessage('Erro ao iniciar conversa. Tente novamente.');
       setSnackbarSeverity('error');
       setSnackbarOpen(true);
-    }
-  };
-
-  const handleStartClick = async () => {
-    const startMessage = "COMEÇAR";
-    const newMessage: Message = { 
-      role: 'user', 
-      content: [{ type: 'text', text: { value: startMessage } }],
-      timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, newMessage]);
-    setIsLoading(true);
-
-    try {
-      const assistantResponse = await getAssistantResponse(startMessage);
-      const responseMessage: Message = {
-        role: 'assistant',
-        content: [{ type: 'text', text: { value: assistantResponse } }],
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, responseMessage]);
-    } catch (error) {
-      console.error('Erro:', error);
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: [{ type: 'text', text: { value: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.' } }],
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim()) return;
+  const handleSendMessage = async () => {
+    if (!input.trim() || !currentThreadId || !selectedAssistant || isLoading) return;
 
-    const userMessage = input;
+    const currentInput = input.trim();
     setInput('');
-
-    // Verifica se a mensagem contém a palavra "DOCUMENTO"
-    if (userMessage.toUpperCase().includes('DOCUMENTO')) {
-      const newMessage: Message = { 
-        role: 'user', 
-        content: [{ type: 'text', text: { value: userMessage } }],
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, newMessage]);
-      await exportToPDF();
-      return; // Retorna sem enviar para a IA
-    }
-
-    // Se não contém DOCUMENTO, processa normalmente
-    const newMessage: Message = { 
-      role: 'user', 
-      content: [{ type: 'text', text: { value: userMessage } }],
-      timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, newMessage]);
     setIsLoading(true);
 
+    const userMessage = {
+      role: 'user' as const,
+      content: [{ type: 'text' as const, text: { value: currentInput } }],
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+
     try {
-      const assistantResponse = await getAssistantResponse(userMessage);
-      const responseMessage: Message = {
-        role: 'assistant',
-        content: [{ type: 'text', text: { value: assistantResponse } }],
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, responseMessage]);
+      await openai.beta.threads.messages.create(currentThreadId, {
+        role: 'user',
+        content: currentInput
+      });
+
+      const run = await openai.beta.threads.runs.create(currentThreadId, {
+        assistant_id: selectedAssistant
+      });
+
+      let runStatus = await openai.beta.threads.runs.retrieve(currentThreadId, run.id);
+      while (runStatus.status !== 'completed' && runStatus.status !== 'failed') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        runStatus = await openai.beta.threads.runs.retrieve(currentThreadId, run.id);
+      }
+
+      if (runStatus.status === 'failed') {
+        throw new Error('Falha ao processar mensagem');
+      }
+
+      const messages = await openai.beta.threads.messages.list(currentThreadId);
+      const response = messages.data[0];
+
+      if (response.role === 'assistant' && response.content[0].type === 'text') {
+        const assistantMessage = {
+          role: 'assistant' as const,
+          content: [{ type: 'text' as const, text: { value: response.content[0].text.value } }],
+          timestamp: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, assistantMessage]);
+      }
     } catch (error) {
-      console.error('Erro:', error);
-      const errorMessage: Message = {
-        role: 'assistant',
-        content: [{ type: 'text', text: { value: 'Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.' } }],
-        timestamp: Date.now()
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      console.error('Erro ao enviar mensagem:', error);
+      setSnackbarMessage('Erro ao enviar mensagem. Tente novamente.');
+      setSnackbarSeverity('error');
+      setSnackbarOpen(true);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDownloadPDF = () => {
+    const pdf = new jsPDF();
+    let y = 20;
+    const pageWidth = pdf.internal.pageSize.width;
+    const margin = 20;
+    const textWidth = pageWidth - (margin * 2);
+    
+    // Cabeçalho com logo e título
+    pdf.setFillColor(226, 192, 116); // Cor dourada
+    pdf.rect(0, 0, pageWidth, 40, 'F');
+    
+    pdf.setTextColor(0);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(24);
+    pdf.text('Histórico de Conversa', margin, 28);
+    
+    y = 50;
+    
+    // Informações do assistente
+    const assistant = assistants.find(a => a.id === selectedAssistant);
+    if (assistant) {
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(margin, y, textWidth, 30, 'F');
+      
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(14);
+      pdf.setTextColor(0);
+      pdf.text('Detalhes da Conversa:', margin + 5, y + 10);
+      
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(12);
+      pdf.text(`Assistente: ${assistant.name}`, margin + 5, y + 20);
+      
+      y += 40;
+    }
+    
+    // Estatísticas da conversa
+    const stats = {
+      totalMessages: messages.length,
+      userMessages: messages.filter(m => m.role === 'user').length,
+      assistantMessages: messages.filter(m => m.role === 'assistant').length,
+      startTime: new Date(messages[0]?.timestamp || Date.now()).toLocaleString(),
+      endTime: new Date(messages[messages.length - 1]?.timestamp || Date.now()).toLocaleString()
+    };
+    
+    pdf.setFillColor(245, 245, 245);
+    pdf.rect(margin, y, textWidth, 40, 'F');
+    
+    pdf.setFont("helvetica", "bold");
+    pdf.text('Estatísticas:', margin + 5, y + 10);
+    pdf.setFont("helvetica", "normal");
+    pdf.text([
+      `Total de mensagens: ${stats.totalMessages}`,
+      `Suas mensagens: ${stats.userMessages}`,
+      `Respostas do assistente: ${stats.assistantMessages}`
+    ], margin + 5, y + 20);
+    
+    y += 50;
+    
+    // Timeline das mensagens
+    messages.forEach((message, index) => {
+      const isUser = message.role === 'user';
+      const text = message.content[0].text.value;
+      const date = new Date(message.timestamp).toLocaleString();
+      
+      // Círculo indicador
+      pdf.setFillColor(isUser ? '#E2C074' : '#1A1C23');
+      pdf.circle(margin + 5, y + 5, 3, 'F');
+      
+      // Linha conectora
+      if (index < messages.length - 1) {
+        pdf.setDrawColor(200, 200, 200);
+        pdf.line(margin + 5, y + 8, margin + 5, y + 25);
+      }
+      
+      // Caixa da mensagem
+      pdf.setFillColor(isUser ? 255 : 245, isUser ? 255 : 245, isUser ? 255 : 245);
+      const messageBox = {
+        x: margin + 15,
+        y: y,
+        width: textWidth - 20,
+        padding: 10
+      };
+      
+      // Cabeçalho da mensagem
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.text(isUser ? 'Você' : 'Assistente', messageBox.x + messageBox.padding, y + 10);
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(9);
+      pdf.setTextColor(100);
+      pdf.text(date, messageBox.x + messageBox.padding + 50, y + 10);
+      
+      // Conteúdo da mensagem
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(10);
+      pdf.setTextColor(0);
+      const splitText = pdf.splitTextToSize(text, messageBox.width - (messageBox.padding * 2));
+      
+      pdf.rect(messageBox.x, messageBox.y, messageBox.width, 20 + (splitText.length * 5), 'F');
+      pdf.text(splitText, messageBox.x + messageBox.padding, y + 20);
+      
+      y += 30 + (splitText.length * 5);
+      
+      // Nova página se necessário
+      if (y > pdf.internal.pageSize.height - 20) {
+        pdf.addPage();
+        y = 20;
+      }
+    });
+    
+    // Rodapé
+    const addFooter = (pageNumber: number) => {
+      const totalPages = pdf.internal.getNumberOfPages();
+      pdf.setFont("helvetica", "italic");
+      pdf.setFontSize(8);
+      pdf.setTextColor(100);
+      pdf.text(
+        `Página ${pageNumber} de ${totalPages} | Gerado em ${new Date().toLocaleString()} | Thread ID: ${currentThreadId}`,
+        margin,
+        pdf.internal.pageSize.height - 10
+      );
+    };
+    
+    // Adiciona rodapé em todas as páginas
+    for (let i = 1; i <= pdf.internal.getNumberOfPages(); i++) {
+      pdf.setPage(i);
+      addFooter(i);
+    }
+    
+    // Salva o PDF
+    const fileName = `chat-${assistant?.name}-${new Date().toLocaleDateString().replace(/\//g, '-')}.pdf`;
+    pdf.save(fileName);
+    
+    setSnackbarMessage('Conversa salva em PDF com sucesso!');
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+  };
+
+  const handleCopyConversation = () => {
+    const conversationText = messages.map(message => {
+      const role = message.role === 'user' ? 'Você' : 'Assistente';
+      const text = message.content[0].text.value;
+      const date = new Date(message.timestamp).toLocaleString();
+      return `[${date}] ${role}:\n${text}\n`;
+    }).join('\n');
+    
+    navigator.clipboard.writeText(conversationText);
+    setSnackbarMessage('Conversa copiada para a área de transferência!');
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+  };
+
+  const toggleFavorite = (assistantId: string) => {
+    setFavorites(prev => 
+      prev.includes(assistantId) 
+        ? prev.filter(id => id !== assistantId)
+        : [...prev, assistantId]
+    );
+  };
+
+  const handleSaveConversation = () => {
+    if (messages.length === 0) return;
+    
+    const newConversation = {
+      id: `conv_${Date.now()}`,
+      title: conversationTitle || `Conversa com ${assistants.find(a => a.id === selectedAssistant)?.name}`,
+      messages,
+      assistantId: selectedAssistant,
+      timestamp: Date.now()
+    };
+    
+    setSavedConversations(prev => [...prev, newConversation]);
+    setShowSavedDialog(false);
+    setConversationTitle('');
+    
+    setSnackbarMessage('Conversa salva com sucesso!');
+    setSnackbarSeverity('success');
+    setSnackbarOpen(true);
+  };
+
+  const handleShareConversation = async () => {
+    try {
+      const conversationText = messages.map(message => {
+        const role = message.role === 'user' ? 'Você' : 'Assistente';
+        const text = message.content[0].text.value;
+        return `${role}: ${text}\n`;
+      }).join('\n');
+      
+      await navigator.share({
+        title: 'Minha conversa com o assistente',
+        text: conversationText
+      });
+      
+      setSnackbarMessage('Conversa compartilhada com sucesso!');
+      setSnackbarSeverity('success');
+    } catch (error) {
+      setSnackbarMessage('Erro ao compartilhar. Tente copiar a conversa.');
+      setSnackbarSeverity('error');
+    }
+    setSnackbarOpen(true);
   };
 
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box 
-        sx={{ 
-          minHeight: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          backgroundColor: 'background.default'
-        }}
-      >
-        {/* Header */}
-        <Box
-          sx={{
-            p: 2,
-            borderBottom: '1px solid rgba(226, 192, 116, 0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: '#1A1C23',
-          }}
-        >
-          <Typography 
-            variant="h6" 
-            sx={{ 
-              color: '#E2C074',
-              fontWeight: 600
-            }}
-          >
-            Assistente Jurídico Interno
-          </Typography>
-          
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <FormControl 
-              size="small" 
-              sx={{ 
-                minWidth: 200,
-                '& .MuiOutlinedInput-root': {
-                  borderColor: 'rgba(226, 192, 116, 0.3)',
-                  '&:hover': {
-                    borderColor: 'rgba(226, 192, 116, 0.5)',
-                  },
-                },
-              }}
-            >
-              <Select
-                value={selectedAssistant}
-                onChange={(e) => setSelectedAssistant(e.target.value)}
-                sx={{ 
-                  color: '#E2C074',
-                  '& .MuiSelect-icon': {
-                    color: '#E2C074',
-                  },
-                }}
-              >
-                {Object.keys(assistantTypes).map((type) => (
-                  <MenuItem 
-                    key={type} 
-                    value={type}
-                    sx={{ 
-                      color: 'text.primary',
-                      '&:hover': {
-                        backgroundColor: 'rgba(226, 192, 116, 0.1)',
-                      },
-                    }}
-                  >
-                    {type}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </Box>
-
-        {/* Chat Area */}
-        <Box 
-          sx={{ 
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Messages */}
-          <Box 
-            sx={{ 
-              flex: 1,
-              overflowY: 'auto',
-              p: 3,
+      <Container maxWidth="xl" sx={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexGrow: 1,
+          gap: 3,
+          py: 3,
+          height: 'calc(100vh - 64px)',
+          overflow: 'hidden'
+        }}>
+          {/* Lista de Assistentes */}
+          <Box sx={{ 
+            width: 300,
+            overflowY: 'auto',
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            p: 2
+          }}>
+            <Typography variant="h6" sx={{ mb: 2, color: 'common.white' }}>
+              Assistentes
+            </Typography>
+            
+            <Box sx={{ 
               display: 'flex',
               flexDirection: 'column',
-              gap: 2,
-            }}
-            ref={messagesEndRef}
-          >
-            {messages.map((message, index) => (
-              <Box
-                key={index}
-                sx={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
-                }}
-              >
-                <Box
+              gap: 2
+            }}>
+              {assistants.map((assistant) => (
+                <Box 
+                  key={assistant.id}
                   sx={{
-                    maxWidth: '80%',
+                    bgcolor: selectedAssistant === assistant.id ? 'primary.main' : 'background.paper',
                     p: 2,
                     borderRadius: 2,
-                    backgroundColor: message.role === 'user' ? 'rgba(226, 192, 116, 0.1)' : '#1E1E1E',
-                    border: '1px solid rgba(226, 192, 116, 0.1)',
+                    boxShadow: selectedAssistant === assistant.id ? 8 : 1
                   }}
                 >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      color: 'text.primary',
-                      whiteSpace: 'pre-wrap',
-                      overflowWrap: 'break-word',
+                  <Typography 
+                    variant="h6"
+                    sx={{ 
+                      color: selectedAssistant === assistant.id ? '#000000' : '#FFFFFF',
+                      fontWeight: 'bold',
+                      mb: 1
                     }}
                   >
-                    {message.content[0].type === 'text' ? message.content[0].text.value : '[Conteúdo não textual]'}
+                    {assistant.name}
                   </Typography>
+                  
+                  <Typography 
+                    variant="body2"
+                    sx={{ 
+                      color: selectedAssistant === assistant.id ? '#000000' : 'text.secondary',
+                      mb: 2
+                    }}
+                  >
+                    {assistant.description}
+                  </Typography>
+                  
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="small"
+                    disabled={isLoading}
+                    onClick={() => startConversation(assistant.id)}
+                    startIcon={<PlayArrowIcon />}
+                    sx={{
+                      bgcolor: selectedAssistant === assistant.id ? 'common.white' : 'primary.main',
+                      color: selectedAssistant === assistant.id ? 'primary.main' : 'common.white',
+                      '&:hover': {
+                        bgcolor: selectedAssistant === assistant.id ? 'common.white' : 'primary.dark'
+                      }
+                    }}
+                  >
+                    {isLoading && selectedAssistant === assistant.id ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      'Começar'
+                    )}
+                  </Button>
                 </Box>
-              </Box>
-            ))}
-            {isLoading && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                <CircularProgress size={24} sx={{ color: '#E2C074' }} />
-              </Box>
-            )}
+              ))}
+            </Box>
           </Box>
 
-          {/* Input Area */}
-          <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{
-              p: 2,
-              borderTop: '1px solid rgba(226, 192, 116, 0.1)',
-              backgroundColor: '#1A1C23',
-              display: 'flex',
-              gap: 1,
-            }}
-          >
-            <TextField
-              fullWidth
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem..."
-              disabled={isLoading}
-              sx={{
-                '& .MuiOutlinedInput-root': {
-                  backgroundColor: '#1E1E1E',
-                  '& fieldset': {
-                    borderColor: 'rgba(226, 192, 116, 0.3)',
-                  },
-                  '&:hover fieldset': {
-                    borderColor: 'rgba(226, 192, 116, 0.5)',
-                  },
-                  '&.Mui-focused fieldset': {
-                    borderColor: '#E2C074',
-                  },
-                },
-                '& .MuiOutlinedInput-input': {
-                  color: '#ffffff',
-                },
-              }}
-            />
-            <Button
-              type="submit"
-              disabled={isLoading || !input.trim()}
-              sx={{
-                minWidth: 'auto',
-                backgroundColor: '#E2C074',
-                color: '#1A1C23',
-                '&:hover': {
-                  backgroundColor: '#c4a666',
-                },
-                '&.Mui-disabled': {
-                  backgroundColor: 'rgba(226, 192, 116, 0.3)',
-                },
+          {/* Área do Chat */}
+          <Box sx={{ 
+            flexGrow: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}>
+            <Box sx={{ 
+              display: 'flex', 
+              gap: 1, 
+              mb: 2,
+              flexWrap: 'wrap'
+            }}>
+              <Tooltip title="Limpar conversa">
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="error"
+                  onClick={() => {
+                    setMessages([]);
+                    setCurrentThreadId('');
+                    setSelectedAssistant('');
+                    setSnackbarMessage('Conversa limpa com sucesso');
+                    setSnackbarSeverity('success');
+                    setSnackbarOpen(true);
+                  }}
+                  startIcon={<DeleteIcon />}
+                >
+                  Limpar
+                </Button>
+              </Tooltip>
+              
+              <Tooltip title="Baixar PDF">
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleDownloadPDF}
+                  startIcon={<DownloadIcon />}
+                  disabled={messages.length === 0}
+                >
+                  PDF
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Copiar">
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleCopyConversation}
+                  startIcon={<ContentCopyIcon />}
+                  disabled={messages.length === 0}
+                >
+                  Copiar
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Compartilhar">
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={handleShareConversation}
+                  startIcon={<ShareIcon />}
+                  disabled={messages.length === 0}
+                >
+                  Compartilhar
+                </Button>
+              </Tooltip>
+
+              <Tooltip title="Salvar">
+                <Button
+                  size="small"
+                  variant="contained"
+                  onClick={() => setShowSavedDialog(true)}
+                  startIcon={<SaveIcon />}
+                  disabled={messages.length === 0}
+                >
+                  Salvar
+                </Button>
+              </Tooltip>
+            </Box>
+
+            {/* Área do chat */}
+            <Paper 
+              sx={{ 
+                flexGrow: 1,
+                height: 'calc(100vh - 200px)', 
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: 'background.paper',
+                overflow: 'hidden',
+                border: '1px solid rgba(255, 255, 255, 0.12)'
               }}
             >
-              <SendIcon />
-            </Button>
+              <Box sx={{ 
+                flex: 1,
+                p: 2,
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 2
+              }}>
+                {messages.map((message, index) => (
+                  <Box
+                    key={index}
+                    sx={{
+                      alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                      maxWidth: '70%',
+                      bgcolor: message.role === 'user' ? 'primary.main' : 'background.default',
+                      color: message.role === 'user' ? 'primary.contrastText' : 'text.primary',
+                      p: 2,
+                      borderRadius: 2
+                    }}
+                  >
+                    <Typography variant="body1">
+                      {message.content[0].text.value}
+                    </Typography>
+                  </Box>
+                ))}
+                <div ref={messagesEndRef} />
+              </Box>
+
+              {/* Input Area */}
+              <Box sx={{ p: 2, bgcolor: 'background.default' }}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  handleSendMessage();
+                }}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <TextField
+                      fullWidth
+                      value={input}
+                      onChange={handleInputChange}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Digite sua mensagem..."
+                      disabled={!selectedAssistant || isLoading}
+                      variant="outlined"
+                      size="small"
+                      InputProps={{
+                        sx: { bgcolor: 'background.paper' }
+                      }}
+                    />
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      disabled={!input.trim() || !selectedAssistant || isLoading}
+                      sx={{ minWidth: 100 }}
+                    >
+                      {isLoading ? <CircularProgress size={24} /> : 'Enviar'}
+                    </Button>
+                  </Box>
+                </form>
+              </Box>
+            </Paper>
           </Box>
         </Box>
-      </Box>
 
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbarOpen(false)} 
-          severity={snackbarSeverity}
-          sx={{ 
-            width: '100%',
-            backgroundColor: snackbarSeverity === 'success' ? '#1E4620' : '#450A0A',
-            color: '#ffffff',
-          }}
+        {/* Diálogo para salvar conversa */}
+        <Dialog open={showSavedDialog} onClose={() => setShowSavedDialog(false)}>
+          <DialogTitle>Salvar Conversa</DialogTitle>
+          <DialogContent>
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Título da conversa"
+              fullWidth
+              variant="outlined"
+              value={conversationTitle}
+              onChange={(e) => setConversationTitle(e.target.value)}
+            />
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setShowSavedDialog(false)}>Cancelar</Button>
+            <Button onClick={handleSaveConversation} variant="contained">
+              Salvar
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={6000}
+          onClose={() => setSnackbarOpen(false)}
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert 
+            onClose={() => setSnackbarOpen(false)} 
+            severity={snackbarSeverity}
+            sx={{ width: '100%' }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Container>
     </ThemeProvider>
   );
-}
+};
 
 export default App;
