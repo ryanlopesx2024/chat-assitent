@@ -292,49 +292,48 @@ function App() {
     }
   };
 
+  const formatText = (text: string, maxWidth: number): string[] => {
+    return text.split('\n').reduce((acc: string[], line: string) => {
+      if (line.length <= maxWidth) {
+        return [...acc, line];
+      }
+      
+      const words = line.split(' ');
+      let currentLine = '';
+      
+      words.forEach((word) => {
+        if ((currentLine + word).length <= maxWidth) {
+          currentLine += (currentLine ? ' ' : '') + word;
+        } else {
+          if (currentLine) acc.push(currentLine);
+          currentLine = word;
+        }
+      });
+      
+      if (currentLine) acc.push(currentLine);
+      return acc;
+    }, []);
+  };
+
   const exportToPDF = async () => {
     try {
       const doc = new jsPDF();
       
       // Configurações do documento
-      doc.setFont('helvetica');
-      doc.setFontSize(16);
-      
-      // Título
-      const title = `Conversa com ${selectedAssistant}`;
-      doc.text(title, 20, 20);
-      
-      // Data
-      doc.setFontSize(12);
-      doc.text(new Date().toLocaleString(), 20, 30);
-      
-      // Linha separadora
-      doc.line(20, 35, 190, 35);
-      
-      // Conteúdo da conversa
-      doc.setFontSize(12);
-      let yPosition = 45;
       const pageHeight = doc.internal.pageSize.height;
       const marginBottom = 20;
+      let yPosition = 20;
       
       messages.forEach((msg) => {
-        // Adiciona o timestamp
-        const timestamp = new Date(msg.timestamp).toLocaleTimeString();
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(128, 128, 128);
-        doc.text(timestamp, 20, yPosition);
-        yPosition += 7;
-        
-        // Adiciona o rótulo (Você ou Assistente)
-        const role = msg.role === 'user' ? 'Você' : 'Assistente';
+        // Adiciona o remetente
         doc.setFont('helvetica', 'bold');
-        doc.setTextColor(0, 0, 0);
-        doc.text(role + ':', 20, yPosition);
+        doc.text(msg.role === 'user' ? 'Você:' : 'Assistente:', 20, yPosition);
         yPosition += 7;
         
         // Adiciona o conteúdo da mensagem
         doc.setFont('helvetica', 'normal');
-        const lines = doc.splitTextToSize(msg.content[0].text.value, 170);
+        const messageText = msg.content[0]?.text?.value || '';
+        const lines = formatText(messageText, 170);
         
         // Verifica se precisa de uma nova página
         if (yPosition + (lines.length * 7) + marginBottom > pageHeight) {
@@ -342,7 +341,7 @@ function App() {
           yPosition = 20;
         }
         
-        lines.forEach(line => {
+        lines.forEach((line: string) => {
           doc.text(line, 20, yPosition);
           yPosition += 7;
         });
@@ -351,7 +350,7 @@ function App() {
       });
       
       // Salva o PDF
-      const filename = `${title} - ${new Date().toLocaleDateString()}.pdf`;
+      const filename = `Conversa com ${selectedAssistant} - ${new Date().toLocaleDateString()}.pdf`;
       doc.save(filename);
 
       setSnackbarMessage('Documento PDF exportado com sucesso!');
