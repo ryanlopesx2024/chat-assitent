@@ -1,11 +1,21 @@
 [build]
-  command = "npm run build"
+  command = "CI=false vite build"
   publish = "dist"
+  base = "/"
 
 [build.environment]
   NODE_VERSION = "18"
+  NPM_FLAGS = "--no-audit --no-fund"
+  VITE_SHOULD_DEBUG = "true"
 
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    Cache-Control = "public, max-age=0, must-revalidate"
