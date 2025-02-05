@@ -47,89 +47,20 @@ const theme = createTheme({
       secondary: '#E2C074',
     },
   },
-  typography: {
-    fontFamily: 'Inter, system-ui, sans-serif',
-    h1: {
-      fontSize: '2rem',
-      fontWeight: 600,
-    },
-    h2: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-    },
-    body1: {
-      fontSize: '1rem',
-      lineHeight: 1.6,
-    },
-  },
   components: {
-    MuiTextField: {
-      styleOverrides: {
-        root: {
-          '& .MuiOutlinedInput-root': {
-            backgroundColor: 'rgba(255, 255, 255, 0.05)',
-            '& fieldset': {
-              borderColor: '#E2C074',
-            },
-            '&:hover fieldset': {
-              borderColor: '#E2C074',
-            },
-            '&.Mui-focused fieldset': {
-              borderColor: '#E2C074',
-            },
-          },
-          '& .MuiInputBase-input': {
-            color: '#ffffff',
-          },
-        },
-      },
-    },
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 600,
-          padding: '8px 16px',
-        },
-        contained: {
-          backgroundColor: '#E2C074',
-          color: '#030409',
-          '&:hover': {
-            backgroundColor: '#c4a666',
-          },
-        },
-      },
-    },
-    MuiSelect: {
-      styleOverrides: {
-        root: {
-          backgroundColor: 'rgba(255, 255, 255, 0.05)',
-          color: '#ffffff',
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#E2C074',
-          },
-          '&:hover .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#E2C074',
-          },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: '#E2C074',
-          },
-        },
-      },
-    },
-    MuiPaper: {
-      styleOverrides: {
-        root: {
-          backgroundImage: 'none',
-        },
-      },
-    },
     MuiCssBaseline: {
       styleOverrides: {
         body: {
           backgroundColor: '#030409',
           margin: 0,
           padding: 0,
+        },
+      },
+    },
+    MuiPaper: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#1A1C23',
         },
       },
     },
@@ -469,140 +400,120 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container 
-        maxWidth="md" 
+      <Box 
         sx={{ 
           minHeight: '100vh',
           display: 'flex',
           flexDirection: 'column',
-          py: 3,
           backgroundColor: 'background.default'
         }}
       >
-        <Paper 
-          elevation={3}
+        {/* Header */}
+        <Box
           sx={{
+            p: 2,
+            borderBottom: '1px solid rgba(226, 192, 116, 0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            backgroundColor: '#1A1C23',
+          }}
+        >
+          <Typography 
+            variant="h6" 
+            sx={{ 
+              color: '#E2C074',
+              fontWeight: 600
+            }}
+          >
+            Assistente Jurídico Interno
+          </Typography>
+          
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <FormControl 
+              size="small" 
+              sx={{ 
+                minWidth: 200,
+                '& .MuiOutlinedInput-root': {
+                  borderColor: 'rgba(226, 192, 116, 0.3)',
+                  '&:hover': {
+                    borderColor: 'rgba(226, 192, 116, 0.5)',
+                  },
+                },
+              }}
+            >
+              <Select
+                value={selectedAssistant}
+                onChange={(e) => setSelectedAssistant(e.target.value)}
+                sx={{ 
+                  color: '#E2C074',
+                  '& .MuiSelect-icon': {
+                    color: '#E2C074',
+                  },
+                }}
+              >
+                {Object.keys(assistantTypes).map((type) => (
+                  <MenuItem 
+                    key={type} 
+                    value={type}
+                    sx={{ 
+                      color: 'text.primary',
+                      '&:hover': {
+                        backgroundColor: 'rgba(226, 192, 116, 0.1)',
+                      },
+                    }}
+                  >
+                    {type}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Box>
+        </Box>
+
+        {/* Chat Area */}
+        <Box 
+          sx={{ 
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
-            backgroundColor: 'background.paper',
-            borderRadius: 2,
             overflow: 'hidden',
-            border: '1px solid rgba(226, 192, 116, 0.1)'
           }}
         >
-          {/* Header com gradiente */}
-          <Box
-            sx={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              height: '4px',
-              background: 'linear-gradient(90deg, #E2C074 0%, #c4a666 100%)',
+          {/* Messages */}
+          <Box 
+            sx={{ 
+              flex: 1,
+              overflowY: 'auto',
+              p: 3,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
             }}
-          />
-
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3, mt: 1 }}>
-            <Typography variant="h1" color="text.secondary" sx={{ fontSize: '1.75rem', fontWeight: 600 }}>
-              Assistente Jurídico Interno
-            </Typography>
-            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-              <FormControl sx={{ minWidth: 280 }}>
-                <InputLabel sx={{ color: 'text.secondary' }}>Selecione o Assistente</InputLabel>
-                <Select
-                  value={selectedAssistant}
-                  onChange={(e) => handleAssistantChange(e.target.value)}
-                  label="Selecione o Assistente"
-                >
-                  {Object.keys(assistantTypes).map((type) => (
-                    <MenuItem 
-                      key={type} 
-                      value={type}
-                      sx={{ 
-                        color: 'text.primary',
-                        '&:hover': {
-                          backgroundColor: 'rgba(226, 192, 116, 0.1)',
-                        },
-                      }}
-                    >
-                      {type}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Tooltip title="Começar nova conversa">
-                <IconButton 
-                  onClick={handleStartClick}
-                  sx={{ 
-                    color: '#E2C074',
-                    '&:hover': {
-                      backgroundColor: 'rgba(226, 192, 116, 0.1)',
-                    }
-                  }}
-                  disabled={isLoading}
-                >
-                  <PlayArrowIcon />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Limpar conversa atual">
-                <IconButton 
-                  onClick={clearHistory}
-                  sx={{ color: 'text.secondary' }}
-                >
-                  <DeleteIcon />
-                </IconButton>
-              </Tooltip>
-            </Box>
-          </Box>
-
-          <Divider sx={{ mb: 3, borderColor: 'rgba(226, 192, 116, 0.2)' }} />
-
-          <Box sx={{ 
-            flexGrow: 1, 
-            overflowY: 'auto', 
-            mb: 3,
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 2,
-            px: 2
-          }}>
+            ref={messagesEndRef}
+          >
             {messages.map((message, index) => (
               <Box
                 key={index}
                 sx={{
                   display: 'flex',
-                  gap: 2,
-                  alignItems: 'flex-start',
-                  backgroundColor: message.role === 'user' ? 'rgba(226, 192, 116, 0.1)' : 'background.paper',
-                  p: 2,
-                  borderRadius: 2,
-                  borderLeft: message.role === 'assistant' ? '4px solid #E2C074' : 'none',
-                  maxWidth: '80%',
-                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
-                  position: 'relative',
+                  flexDirection: 'column',
+                  alignItems: message.role === 'user' ? 'flex-end' : 'flex-start',
                 }}
               >
-                <Avatar 
-                  sx={{ 
-                    bgcolor: message.role === 'user' ? '#E2C074' : '#1E1E1E',
-                    color: message.role === 'user' ? '#030409' : '#E2C074',
+                <Box
+                  sx={{
+                    maxWidth: '80%',
+                    p: 2,
+                    borderRadius: 2,
+                    backgroundColor: message.role === 'user' ? 'rgba(226, 192, 116, 0.1)' : '#1E1E1E',
+                    border: '1px solid rgba(226, 192, 116, 0.1)',
                   }}
                 >
-                  {message.role === 'user' ? 'U' : 'A'}
-                </Avatar>
-                <Box>
-                  <Typography 
-                    variant="caption" 
-                    color="text.secondary"
-                    sx={{ mb: 0.5, display: 'block' }}
-                  >
-                    {new Date(message.timestamp).toLocaleTimeString()}
-                  </Typography>
-                  <Typography 
-                    variant="body1" 
-                    color="text.primary"
-                    sx={{ 
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: 'text.primary',
                       whiteSpace: 'pre-wrap',
                       overflowWrap: 'break-word',
                     }}
@@ -612,19 +523,23 @@ function App() {
                 </Box>
               </Box>
             ))}
-            <div ref={messagesEndRef} />
+            {isLoading && (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
+                <CircularProgress size={24} sx={{ color: '#E2C074' }} />
+              </Box>
+            )}
           </Box>
 
-          <Box 
-            component="form" 
-            onSubmit={handleSubmit} 
-            sx={{ 
-              display: 'flex', 
-              gap: 2,
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          {/* Input Area */}
+          <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{
               p: 2,
-              borderRadius: 2,
-              position: 'relative',
+              borderTop: '1px solid rgba(226, 192, 116, 0.1)',
+              backgroundColor: '#1A1C23',
+              display: 'flex',
+              gap: 1,
             }}
           >
             <TextField
@@ -633,54 +548,63 @@ function App() {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Digite sua mensagem..."
               disabled={isLoading}
-              variant="outlined"
-              multiline
-              maxRows={4}
-              sx={{ 
+              sx={{
                 '& .MuiOutlinedInput-root': {
-                  backgroundColor: 'transparent',
-                }
+                  backgroundColor: '#1E1E1E',
+                  '& fieldset': {
+                    borderColor: 'rgba(226, 192, 116, 0.3)',
+                  },
+                  '&:hover fieldset': {
+                    borderColor: 'rgba(226, 192, 116, 0.5)',
+                  },
+                  '&.Mui-focused fieldset': {
+                    borderColor: '#E2C074',
+                  },
+                },
+                '& .MuiOutlinedInput-input': {
+                  color: '#ffffff',
+                },
               }}
             />
             <Button
               type="submit"
-              variant="contained"
-              disabled={isLoading}
-              sx={{ 
+              disabled={isLoading || !input.trim()}
+              sx={{
                 minWidth: 'auto',
-                width: 56,
-                height: 56,
-                borderRadius: '50%',
+                backgroundColor: '#E2C074',
+                color: '#1A1C23',
+                '&:hover': {
+                  backgroundColor: '#c4a666',
+                },
+                '&.Mui-disabled': {
+                  backgroundColor: 'rgba(226, 192, 116, 0.3)',
+                },
               }}
             >
-              {isLoading ? (
-                <CircularProgress size={24} color="inherit" />
-              ) : (
-                <SendIcon />
-              )}
+              <SendIcon />
             </Button>
           </Box>
-        </Paper>
+        </Box>
+      </Box>
 
-        <Snackbar
-          open={snackbarOpen}
-          autoHideDuration={4000}
-          onClose={() => setSnackbarOpen(false)}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={4000}
+        onClose={() => setSnackbarOpen(false)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbarOpen(false)} 
+          severity={snackbarSeverity}
+          sx={{ 
+            width: '100%',
+            backgroundColor: snackbarSeverity === 'success' ? '#1E4620' : '#450A0A',
+            color: '#ffffff',
+          }}
         >
-          <Alert 
-            onClose={() => setSnackbarOpen(false)} 
-            severity={snackbarSeverity}
-            sx={{ 
-              width: '100%',
-              backgroundColor: snackbarSeverity === 'success' ? '#1E4620' : '#450A0A',
-              color: '#ffffff',
-            }}
-          >
-            {snackbarMessage}
-          </Alert>
-        </Snackbar>
-      </Container>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </ThemeProvider>
   );
 }
