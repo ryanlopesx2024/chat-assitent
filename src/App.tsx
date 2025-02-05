@@ -124,6 +124,15 @@ const theme = createTheme({
         },
       },
     },
+    MuiCssBaseline: {
+      styleOverrides: {
+        body: {
+          backgroundColor: '#030409',
+          margin: 0,
+          padding: 0,
+        },
+      },
+    },
   },
 });
 
@@ -460,18 +469,26 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Container maxWidth="lg" sx={{ minHeight: '100vh', py: 4 }}>
+      <Container 
+        maxWidth="md" 
+        sx={{ 
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          py: 3,
+          backgroundColor: 'background.default'
+        }}
+      >
         <Paper 
-          elevation={3} 
-          sx={{ 
-            minHeight: 'calc(100vh - 2rem)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            p: 3,
+          elevation={3}
+          sx={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
             backgroundColor: 'background.paper',
             borderRadius: 2,
-            position: 'relative',
             overflow: 'hidden',
+            border: '1px solid rgba(226, 192, 116, 0.1)'
           }}
         >
           {/* Header com gradiente */}
@@ -644,26 +661,26 @@ function App() {
             </Button>
           </Box>
         </Paper>
-      </Container>
-      
-      <Snackbar
-        open={snackbarOpen}
-        autoHideDuration={4000}
-        onClose={() => setSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSnackbarOpen(false)} 
-          severity={snackbarSeverity}
-          sx={{ 
-            width: '100%',
-            backgroundColor: snackbarSeverity === 'success' ? '#1E4620' : '#450A0A',
-            color: '#ffffff',
-          }}
+
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          {snackbarMessage}
-        </Alert>
-      </Snackbar>
+          <Alert 
+            onClose={() => setSnackbarOpen(false)} 
+            severity={snackbarSeverity}
+            sx={{ 
+              width: '100%',
+              backgroundColor: snackbarSeverity === 'success' ? '#1E4620' : '#450A0A',
+              color: '#ffffff',
+            }}
+          >
+            {snackbarMessage}
+          </Alert>
+        </Snackbar>
+      </Container>
     </ThemeProvider>
   );
 }
