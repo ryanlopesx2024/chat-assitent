@@ -1,5 +1,5 @@
 [build]
-  command = "CI=false vite build"
+  command = "CI=false npm run build"
   publish = "dist"
   base = "/"
 
@@ -19,20 +19,33 @@
   [headers.values]
     X-Frame-Options = "DENY"
     X-XSS-Protection = "1; mode=block"
-    Content-Security-Policy = "default-src 'self' 'unsafe-inline' 'unsafe-eval'; img-src 'self' data: blob:; connect-src 'self' https://api.openai.com;"
+    Content-Security-Policy = """
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline';
+      img-src 'self' data: blob: https:;
+      font-src 'self';
+      connect-src 'self' https://api.openai.com;
+      media-src 'self';
+      object-src 'none';
+      frame-ancestors 'none';
+      form-action 'self';
+      base-uri 'self'
+    """
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+    Cache-Control = "public, max-age=0, must-revalidate"
 
 [[headers]]
-  for = "/*.js"
+  for = "/assets/*.js"
   [headers.values]
-    Content-Type = "application/javascript"
+    Content-Type = "application/javascript; charset=utf-8"
 
 [[headers]]
-  for = "/*.css"
+  for = "/assets/*.css"
   [headers.values]
-    Content-Type = "text/css"
+    Content-Type = "text/css; charset=utf-8"
 
 [[headers]]
   for = "/*.html"

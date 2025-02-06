@@ -16,16 +16,24 @@ export default defineConfig({
     assetsDir: 'assets',
     sourcemap: false,
     minify: 'terser',
-    chunkSizeWarningLimit: 1000,
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true
+      }
+    },
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index.html'),
+        main: path.resolve(__dirname, 'index.html')
       },
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', '@mui/material', '@emotion/react', '@emotion/styled'],
           utils: ['jspdf', 'html2canvas']
         },
+        format: 'es',
+        chunkFileNames: 'assets/js/[name].[hash].js',
+        entryFileNames: 'assets/js/[name].[hash].js',
         assetFileNames: (assetInfo) => {
           const info = assetInfo.name.split('.')
           const extType = info[info.length - 1]
@@ -39,14 +47,21 @@ export default defineConfig({
             return `assets/fonts/[name].[hash][extname]`
           }
           return `assets/[name].[hash][extname]`
-        },
-        chunkFileNames: 'assets/js/[name].[hash].js',
-        entryFileNames: 'assets/js/[name].[hash].js',
+        }
       }
     }
   },
   server: {
     port: 5173,
-    host: true
+    host: true,
+    strictPort: true,
+    headers: {
+      'Cache-Control': 'no-store',
+      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Opener-Policy': 'same-origin',
+      'Cross-Origin-Resource-Policy': 'same-origin',
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY'
+    }
   }
 })
